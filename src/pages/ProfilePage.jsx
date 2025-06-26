@@ -18,17 +18,17 @@ const ProfilePage = () => {
     {
       id: 1,
       type: 'Home',
-      address: '123 Main Street, Apartment 4B',
-      city: 'New York',
-      zipCode: '10001',
+      address: 'BTM layout,16th Main Road',
+      city: 'Bengaluru',
+      zipCode: '590001',
       isDefault: true
     },
     {
       id: 2,
       type: 'Office',
-      address: '456 Business Avenue, Suite 300',
-      city: 'New York',
-      zipCode: '10002',
+      address: 'Anna Nagar, Guindy',
+      city: 'Chennai',
+      zipCode: '6000028',
       isDefault: false
     }
   ]);

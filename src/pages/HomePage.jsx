@@ -12,7 +12,7 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [location, setLocation] = useState('New York, NY');
+  const [location, setLocation] = useState('BTM Layout, Bangalore');
   const navigate = useNavigate();
   
   useEffect(() => {

@@ -40,8 +40,8 @@ const RegisterPage = () => {
     
     if (!formData.name) {
       newErrors.name = 'Name is required';
-    } else if (formData.name.length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+    } else if (formData.name.length < 3) {
+      newErrors.name = 'Name must be at least 3 characters';
     }
     
     if (!formData.email) {

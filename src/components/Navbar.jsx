@@ -25,7 +25,7 @@ const Navbar = () => {
             <div className="bg-orange-500 text-white p-2 rounded-lg">
               <Package className="h-6 w-6" />
             </div>
-            <span className="text-xl font-bold text-gray-800">FoodieExpress</span>
+            <span className="text-xl font-bold text-gray-800">FoodStack</span>
           </Link>
           
           {user && (
