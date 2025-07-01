@@ -236,3 +236,5 @@ const CartPage = () => {
 };
 
 export default CartPage;
+
+// need to implemention payment gateway integration
