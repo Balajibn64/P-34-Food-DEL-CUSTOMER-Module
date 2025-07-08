@@ -3,215 +3,178 @@ import { getUserOrders } from '../services/api';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Package, Clock, CheckCircle, XCircle, Calendar, CreditCard, Smartphone } from 'lucide-react';
+import { useLocation } from "react-router-dom";
+
+
 
 const OrdersPage = () => {
+  const location = useLocation();
+  const latestOrder = location.state?.order;
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [search, setSearch] = useState("");
+
   useEffect(() => {
     loadOrders();
+    // eslint-disable-next-line
   }, []);
-  
+
   const loadOrders = async () => {
     try {
       const data = await getUserOrders();
-      setOrders(data);
+      // If latestOrder exists and not already in the list, add it to the top
+      if (latestOrder && !data.find(o => o.id === latestOrder.id)) {
+        setOrders([latestOrder, ...data]);
+      } else {
+        setOrders(data);
+      }
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
       setLoading(false);
     }
   };
-  
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'delivered':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'cancelled':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'confirmed':
-      case 'preparing':
-      case 'on_the_way':
-        return <Clock className="h-5 w-5 text-orange-500" />;
-      default:
-        return <Package className="h-5 w-5 text-gray-500" />;
-    }
+
+  const exportCSV = () => {
+    const header = "Order ID,Date,Status,Total,Payment Method,Items\n";
+    const rows = orders.map(order =>
+      `${order.id},"${order.orderDate}",${order.status},${order.total},${order.paymentMethod},"${order.items.map(i => i.name + ' x ' + i.quantity).join('; ')}"`
+    );
+    const csv = header + rows.join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "orders.csv";
+    a.click();
   };
-  
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'delivered':
-        return 'Delivered';
-      case 'cancelled':
-        return 'Cancelled';
-      case 'confirmed':
-        return 'Confirmed';
-      case 'preparing':
-        return 'Preparing';
-      case 'on_the_way':
-        return 'On the way';
-      default:
-        return 'Unknown';
-    }
-  };
-  
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'delivered':
-        return 'text-green-600 bg-green-100';
-      case 'cancelled':
-        return 'text-red-600 bg-red-100';
-      case 'confirmed':
-      case 'preparing':
-      case 'on_the_way':
-        return 'text-orange-600 bg-orange-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-  
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case 'Success':
-        return 'text-green-600 bg-green-100';
-      case 'Failed':
-        return 'text-red-600 bg-red-100';
-      case 'Refunded':
-        return 'text-blue-600 bg-blue-100';
-      case 'Pending':
-        return 'text-yellow-600 bg-yellow-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-  
-  const getPaymentMethodIcon = (method) => {
-    switch (method) {
-      case 'UPI':
-        return <Smartphone className="h-4 w-4" />;
-      case 'Credit Card':
-      case 'Debit Card':
-        return <CreditCard className="h-4 w-4" />;
-      default:
-        return <CreditCard className="h-4 w-4" />;
-    }
-  };
-  
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-  
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <LoadingSpinner size="lg" />
       </div>
     );
   }
-  
+
+  if (orders.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">No orders yet</h2>
+          <p className="text-gray-600 mb-6">Your orders will appear here after you place them.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">My Orders</h1>
-        
-        {orders.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">No orders yet</h2>
-            <p className="text-gray-600">When you place your first order, it will appear here.</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {orders.map((order) => (
-              <Card key={order.id} className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Order #{order.id}
-                      </h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {getStatusText(order.status)}
-                      </span>
-                    </div>
-                    <div className="flex items-center text-gray-600 text-sm">
-                      <Calendar className="h-4 w-4 mr-1" />
-                      {formatDate(order.orderDate)}
-                    </div>
+      <div className="max-w-3xl mx-auto px-4">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Orders</h1>
+        <input
+          type="text"
+          placeholder="Search by restaurant or status..."
+          className="mb-4 px-3 py-2 border rounded w-full"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <button className="mb-4 px-4 py-2 bg-green-600 text-white rounded" onClick={exportCSV}>
+          Export Orders as CSV
+        </button>
+        <div className="space-y-6">
+          {orders
+            .filter(order =>
+              order.restaurant?.toLowerCase().includes(search.toLowerCase()) ||
+              order.status?.toLowerCase().includes(search.toLowerCase())
+            )
+            .map(order => (
+              <Card key={order.id} className="p-6 cursor-pointer" onClick={() => setSelectedOrder(order)}>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-gray-400" />
+                    <span className="text-gray-700">{new Date(order.orderDate).toLocaleString()}</span>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-gray-900">₹{order.total}</p>
-                    <p className="text-sm text-gray-600">{order.restaurant}</p>
-                  </div>
-                </div>
-                
-                {/* Payment Details */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <h4 className="font-medium text-gray-900 mb-3">Payment Details</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center space-x-2">
-                      {getPaymentMethodIcon(order.paymentMethod)}
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{order.paymentMethod}</p>
-                        <p className="text-xs text-gray-600">Payment Method</p>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{order.paymentId}</p>
-                      <p className="text-xs text-gray-600">Payment ID</p>
-                    </div>
-                    <div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
-                        {order.paymentStatus}
-                      </span>
-                      <p className="text-xs text-gray-600 mt-1">Payment Status</p>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    {order.status === "confirmed" && <CheckCircle className="h-5 w-5 text-green-500" />}
+                    {order.status === "delivered" && <CheckCircle className="h-5 w-5 text-green-700" />}
+                    {order.status === "preparing" && <Clock className="h-5 w-5 text-yellow-500" />}
+                    {order.status === "cancelled" && <XCircle className="h-5 w-5 text-red-500" />}
+                    <span className="font-semibold capitalize">{order.status}</span>
                   </div>
                 </div>
-                
-                <div className="border-t pt-4">
-                  <h4 className="font-medium text-gray-900 mb-3">Items Ordered:</h4>
-                  <div className="space-y-2">
-                    {order.items.map((item, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-gray-600">{item.quantity}x</span>
-                          <span className="text-gray-900">{item.name}</span>
-                        </div>
-                        <span className="text-gray-600">₹{item.price}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="mb-2">
+                  <span className="font-semibold text-gray-900">Total: </span>
+                  <span className="text-orange-600 font-bold">₹{order.total}</span>
                 </div>
-                
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <div className="flex items-center space-x-2">
-                    {getStatusIcon(order.status)}
-                    <span className="text-sm text-gray-600">
-                      {order.status === 'delivered' ? 'Order delivered successfully' :
-                       order.status === 'cancelled' ? 'Order was cancelled' :
-                       'Order is being processed'}
+                <div className="mb-2">
+                  <span className="font-semibold text-gray-900">Payment: </span>
+                  <span className="text-gray-700">{order.paymentMethod}</span>
+                  {order.paymentStatus && (
+                    <span className={`ml-2 text-xs px-2 py-1 rounded ${order.paymentStatus === "Success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {order.paymentStatus}
                     </span>
-                  </div>
-                  
-                  {order.status === 'delivered' && (
-                    <button className="text-orange-600 hover:text-orange-500 text-sm font-medium">
-                      Reorder
-                    </button>
                   )}
                 </div>
+                <div className="mb-2">
+                  <span className="font-semibold text-gray-900">Address: </span>
+                  <span className="text-gray-700">
+                    {order.address?.type}, {order.address?.address}, {order.address?.city} - {order.address?.zipCode}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-900">Items:</span>
+                  <ul className="list-disc ml-6 mt-1 text-gray-700">
+                    {order.items.map((item, idx) => (
+                      <li key={idx}>
+                        {item.name} x {item.quantity} <span className="text-gray-500">₹{item.price * item.quantity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <button
+                  className="mt-3 px-3 py-1 bg-orange-500 text-white rounded"
+                  onClick={e => {
+                    e.stopPropagation();
+                    localStorage.setItem("cart", JSON.stringify(order.items)); // Use "cart" to match your CartPage
+                    alert("Items added to cart! Go to Cart to review.");
+                  }}
+                >
+                  Reorder
+                </button>
               </Card>
             ))}
-          </div>
-        )}
+        </div>
       </div>
+      {selectedOrder && (
+        <Modal onClose={() => setSelectedOrder(null)}>
+          <h2 className="text-xl font-bold mb-2">Order #{selectedOrder.id}</h2>
+          <div>
+            <strong>Date:</strong> {new Date(selectedOrder.orderDate).toLocaleString()}
+          </div>
+          <div>
+            <strong>Status:</strong> {selectedOrder.status}
+          </div>
+          <div>
+            <strong>Payment:</strong> {selectedOrder.paymentMethod} ({selectedOrder.paymentStatus})
+          </div>
+          <div>
+            <strong>Address:</strong> {selectedOrder.address?.type}, {selectedOrder.address?.address}, {selectedOrder.address?.city} - {selectedOrder.address?.zipCode}
+          </div>
+          <div>
+            <strong>Items:</strong>
+            <ul>
+              {selectedOrder.items.map((item, idx) => (
+                <li key={idx}>{item.name} x {item.quantity} (₹{item.price * item.quantity})</li>
+              ))}
+            </ul>
+          </div>
+          <button className="mt-4 px-4 py-2 bg-orange-500 text-white rounded" onClick={() => setSelectedOrder(null)}>Close</button>
+        </Modal>
+      )}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Plus, Minus, Trash2, MapPin, ShoppingBag } from 'lucide-react';
+import axios from "axios";
 
 const CartPage = () => {
   const navigate = useNavigate();
@@ -53,31 +54,60 @@ const CartPage = () => {
   
   const handlePlaceOrder = async () => {
     if (!selectedAddress) {
-      alert('Please select a delivery address');
+      alert("Please select a delivery address");
       return;
     }
-    
+
     setProcessingOrder(true);
-    
+
     try {
-      const orderData = {
-        items: cartItems,
-        address: selectedAddress,
-        total: getTotalAmount() + 50 + 25 // Adding delivery fee and taxes
+      // 1. (Optional) Create order on backend to get order_id (skip for mock/test)
+      // const orderRes = await axios.post('http://localhost:8080/api/create-razorpay-order', {
+      //   amount: (getTotalAmount() + 50 + 25) * 100,
+      //   currency: 'INR'
+      // });
+      // const { id: order_id, amount, currency } = orderRes.data;
+
+      // 2. Razorpay options
+      const options = {
+        key: "rzp_test_j0p7WubjrPv7AL", // Replace with your Razorpay Key ID
+        amount: (getTotalAmount() + 50 + 25) * 100, // in paisa
+        currency: "INR",
+        name: "Food Delivery App",
+        description: "Order Payment",
+        // order_id, // Uncomment when backend provides order_id
+        handler: async function (response) {
+          const orderData = {
+            items: cartItems,
+            address: selectedAddress,
+            total: getTotalAmount() + 50 + 25,
+            paymentMethod: "Razorpay",
+            paymentStatus: "Success",
+            paymentId: response.razorpay_payment_id,
+          };
+          const result = await placeOrder(orderData);
+          if (result.success) {
+            // localStorage.setItem("cartItems", JSON.stringify(order.items)); // REMOVE THIS LINE
+            clearCart();
+            alert("Order placed successfully!");
+            navigate("/orders", { state: { order: result.order } });
+          }
+        },
+        prefill: {
+          name: "", // Optionally fill user details
+          email: "",
+          contact: "",
+        },
+        theme: {
+          color: "#F37254",
+        },
       };
-      
-      const result = await placeOrder(orderData);
-      
-      if (result.success) {
-        clearCart();
-        alert('Order placed successfully!');
-        navigate('/orders');
-      } else {
-        alert('Failed to place order. Please try again.');
-      }
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (error) {
-      console.error('Error placing order:', error);
-      alert('Failed to place order. Please try again.');
+      console.error("Payment error:", error);
+      alert("Payment failed. Please try again.");
     } finally {
       setProcessingOrder(false);
     }

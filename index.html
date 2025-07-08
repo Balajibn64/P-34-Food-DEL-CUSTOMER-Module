@@ -9,5 +9,39 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+      // 1. Create order on backend (when backend is ready)
+      // const orderRes = await axios.post('http://localhost:8080/api/create-razorpay-order', { amount: total * 100, currency: 'INR' });
+      // const { id: order_id, amount, currency } = orderRes.data;
+
+      const options = {
+        key: 'YOUR_RAZORPAY_KEY_ID',
+        amount: (getTotalAmount() + 50 + 25) * 100,
+        currency: 'INR',
+        name: 'Food Delivery App',
+        description: 'Order Payment',
+        // order_id, // when backend is ready
+        handler: async function (response) {
+          // Place order only if payment is successful
+          const orderData = {
+            items: cartItems,
+            address: selectedAddress,
+            total: getTotalAmount() + 50 + 25,
+            paymentMethod: 'Razorpay',
+            paymentStatus: 'Success',
+            paymentId: response.razorpay_payment_id
+          };
+          const result = await placeOrder(orderData);
+          if (result.success) {
+            clearCart();
+            alert('Order placed successfully!');
+            navigate('/orders');
+          }
+        }
+      };
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    </script>
   </body>
 </html>

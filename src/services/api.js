@@ -1,4 +1,5 @@
 // Mock API service for food delivery app
+import axios from "axios";
 
 export const mockCategories = [
   {
@@ -300,6 +301,20 @@ export const mockOrders = [
       { name: 'Chicken Fried Rice', quantity: 1, price: 199 },
       { name: 'Veg Hakka Noodles', quantity: 1, price: 179 }
     ]
+  },
+  {
+    id: 5,
+    orderDate: '2024-01-11T16:00:00Z',
+    status: 'delivered',
+    total: 448,
+    restaurant: 'Jaya Kothi Resto',
+    paymentMethod: 'Cash on Delivery',
+    paymentId: 'COD123456789',
+    paymentStatus: 'Success',
+    items: [
+      { name: 'Chocolate Cake', quantity: 1, price: 299 },
+      { name: 'Vanilla Ice Cream', quantity: 1, price: 149 }
+    ]
   }
 ];
 
@@ -361,21 +376,19 @@ export const getUserAddresses = async () => {
 
 export const getUserOrders = async () => {
   await new Promise(resolve => setTimeout(resolve, 400));
-  return mockOrders;
+  // Get orders from localStorage, fallback to mockOrders if empty
+  const localOrders = JSON.parse(localStorage.getItem("orders") || "[]");
+  return localOrders.length > 0 ? localOrders : mockOrders;
 };
 
 export const placeOrder = async (orderData) => {
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  const newOrder = {
-    id: Date.now(),
-    orderDate: new Date().toISOString(),
-    status: 'confirmed',
-    paymentMethod: 'UPI',
-    paymentId: `UPI${Date.now()}`,
-    paymentStatus: 'Success',
-    ...orderData
-  };
-  
+  const newOrder = { ...orderData, id: Date.now(), orderDate: new Date().toISOString(), status: "confirmed" };
+
+  // Get existing orders from localStorage
+  const existing = JSON.parse(localStorage.getItem("orders") || "[]");
+  // Add new order
+  localStorage.setItem("orders", JSON.stringify([newOrder, ...existing]));
+
   return { success: true, order: newOrder };
 };
