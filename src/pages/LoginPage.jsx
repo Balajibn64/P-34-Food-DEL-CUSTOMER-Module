@@ -13,7 +13,7 @@ const LoginPage = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   
   const handleChange = (e) => {
@@ -53,13 +53,14 @@ const LoginPage = () => {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setLoading(true);
-    const result = await login(formData.email, formData.password);
+    // Always trim email and send userType 'CUSTOMER'
+    const result = await login(formData.email.trim(), formData.password);
     setLoading(false);
-    
+
     if (result.success) {
       navigate('/');
     } else {
@@ -68,8 +69,41 @@ const LoginPage = () => {
   };
   
   const handleGoogleLogin = () => {
-    // Mock Google OAuth
-    alert('Google OAuth integration would be implemented here');
+    const backendUrl = "http://localhost:8080"; // Your backend URL
+    const userType = "CUSTOMER"; // Or "RIDER", "RESTAURANT", etc.
+    const oauthUrl = `${backendUrl}/oauth2/authorization/google?userType=${userType}`;
+
+    // Open popup
+    const width = 500, height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      oauthUrl,
+      "GoogleOAuth",
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
+
+    // Listen for message from popup
+    const receiveMessage = (event) => {
+      // Optionally check event.origin for security
+      if (event.data && event.data.token) {
+        // Use the AuthContext to handle Google login
+        loginWithGoogle(event.data.token).then(result => {
+          if (result.success) {
+            window.location.href = "/";
+          }
+        });
+      }
+    };
+
+    window.addEventListener("message", receiveMessage, { once: true });
+    
+    // Add timeout to check if popup is blocked or failed
+    setTimeout(() => {
+      if (popup && !popup.closed) {
+        console.log("Popup is still open - user may need to close it manually");
+      }
+    }, 10000); // 10 seconds timeout
   };
   
   return (

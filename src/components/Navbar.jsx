@@ -17,6 +17,24 @@ const Navbar = () => {
   
   const isActive = (path) => location.pathname === path;
   
+  // Helper function to get display name
+  const getDisplayName = () => {
+    const firstName = user?.first_name || user?.firstName;
+    const lastName = user?.last_name || user?.lastName;
+    
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    } else if (firstName) {
+      return firstName;
+    } else if (lastName) {
+      return lastName;
+    } else if (user?.username) {
+      return user.username;
+    } else {
+      return 'User';
+    }
+  };
+  
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -73,7 +91,7 @@ const Navbar = () => {
                   }`}
                 >
                   <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">{user.name}</span>
+                  <span className="hidden sm:inline">{getDisplayName()}</span>
                 </Link>
                 
                 <button

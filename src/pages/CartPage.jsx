@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { getUserAddresses, placeOrder } from '../services/api';
+import { getUserAddresses } from '../services/customerApi';
+// TODO: Move placeOrder to orderApi.js if not already
+import { placeOrder } from '../services/orderApi';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import LoadingSpinner from '../components/LoadingSpinner';

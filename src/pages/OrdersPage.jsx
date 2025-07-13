@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserOrders } from '../services/api';
+import { getUserOrders } from '../services/orderApi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Package, Clock, CheckCircle, XCircle, Calendar, CreditCard, Smartphone } from 'lucide-react';

@@ -13,7 +13,7 @@ import ProfilePage from './pages/ProfilePage';
 import OrdersPage from './pages/OrdersPage';
 import LoadingSpinner from './components/LoadingSpinner';
 
-const ProtectedRoute = ({ children }) => {
+const AppRoutes = () => {
   const { user, loading } = useAuth();
   
   if (loading) {
@@ -24,21 +24,69 @@ const ProtectedRoute = ({ children }) => {
     );
   }
   
-  return user ? children : <Navigate to="/login" />;
-};
-
-const PublicRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-  
-  return !user ? children : <Navigate to="/" />;
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={
+          !user ? <LoginPage /> : <Navigate to="/" />
+        } />
+        <Route path="/register" element={
+          !user ? <RegisterPage /> : <Navigate to="/" />
+        } />
+        
+        {/* Protected routes */}
+        <Route path="/" element={
+          user ? (
+            <>
+              <Navbar />
+              <HomePage />
+            </>
+          ) : <Navigate to="/login" />
+        } />
+        <Route path="/category/:categoryId" element={
+          user ? (
+            <>
+              <Navbar />
+              <CategoryPage />
+            </>
+          ) : <Navigate to="/login" />
+        } />
+        <Route path="/restaurant/:id" element={
+          user ? (
+            <>
+              <Navbar />
+              <RestaurantPage />
+            </>
+          ) : <Navigate to="/login" />
+        } />
+        <Route path="/cart" element={
+          user ? (
+            <>
+              <Navbar />
+              <CartPage />
+            </>
+          ) : <Navigate to="/login" />
+        } />
+        <Route path="/profile" element={
+          user ? (
+            <>
+              <Navbar />
+              <ProfilePage />
+            </>
+          ) : <Navigate to="/login" />
+        } />
+        <Route path="/orders" element={
+          user ? (
+            <>
+              <Navbar />
+              <OrdersPage />
+            </>
+          ) : <Navigate to="/login" />
+        } />
+      </Routes>
+    </div>
+  );
 };
 
 function App() {
@@ -46,59 +94,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <Router>
-          <div className="min-h-screen bg-gray-50">
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={
-                <PublicRoute>
-                  <LoginPage />
-                </PublicRoute>
-              } />
-              <Route path="/register" element={
-                <PublicRoute>
-                  <RegisterPage />
-                </PublicRoute>
-              } />
-              
-              {/* Protected routes */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Navbar />
-                  <HomePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/category/:categoryId" element={
-                <ProtectedRoute>
-                  <Navbar />
-                  <CategoryPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/restaurant/:id" element={
-                <ProtectedRoute>
-                  <Navbar />
-                  <RestaurantPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/cart" element={
-                <ProtectedRoute>
-                  <Navbar />
-                  <CartPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <Navbar />
-                  <ProfilePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/orders" element={
-                <ProtectedRoute>
-                  <Navbar />
-                  <OrdersPage />
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </div>
+          <AppRoutes />
         </Router>
       </CartProvider>
     </AuthProvider>

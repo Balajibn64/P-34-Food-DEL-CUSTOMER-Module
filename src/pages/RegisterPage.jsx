@@ -16,7 +16,7 @@ const RegisterPage = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   
-  const { register } = useAuth();
+  const { register, login } = useAuth();
   const navigate = useNavigate();
   
   const handleChange = (e) => {
@@ -78,16 +78,26 @@ const RegisterPage = () => {
     if (!validateForm()) return;
     
     setLoading(true);
-    const result = await register({
-      name: formData.name,
+    const result = await register('CUSTOMER', {
+      username: formData.name,
       email: formData.email,
       phone: formData.phone,
       password: formData.password
     });
     setLoading(false);
     
+    console.log(result.success);
     if (result.success) {
-      navigate('/');
+      // Auto-login after registration
+      setLoading(true);
+      const loginResult = await login(formData.name, formData.password);
+      setLoading(false);
+      if (loginResult.success) {
+        navigate('/');
+      } else {
+        setErrors({ general: 'Registration succeeded, but login failed. Please sign in.' });
+        navigate('/login');
+      }
     } else {
       setErrors({ general: result.error });
     }

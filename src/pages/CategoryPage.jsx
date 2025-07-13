@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getRestaurantsByCategory, getCategoryById } from '../services/api';
+import { getRestaurantsByCategory } from '../services/restaurantApi';
+import { getCategoryById } from '../services/categoryApi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/Button';

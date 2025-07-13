@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { searchRestaurants, getCategories } from '../services/api';
+import { getCategories } from '../services/categoryApi';
+// TODO: Move searchRestaurants to restaurantApi.js if not already
+import { searchRestaurants } from '../services/restaurantApi';
 import Card from '../components/Card';
 import CategoryCard from '../components/CategoryCard';
 import LoadingSpinner from '../components/LoadingSpinner';

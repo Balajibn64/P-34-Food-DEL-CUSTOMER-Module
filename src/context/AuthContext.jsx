@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { login as apiLogin, register as apiRegister } from '../services/authApi';
+import { getCustomerDetails } from '../services/customerApi';
 
 const AuthContext = createContext();
 
@@ -17,77 +19,71 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Check for existing token on app start
     const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('userData');
-    
-    if (token && userData) {
-      setUser(JSON.parse(userData));
+    if (token) {
+      getCustomerDetails().then((data) => {
+        console.log('Customer details received:', data);
+        setUser(data);
+        setLoading(false);
+      }).catch((error) => {
+        console.error('Error fetching customer details:', error);
+        setUser(null);
+        setLoading(false);
+      });
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (username, password) => {
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (email === 'demo@example.com' && password === 'password') {
-        const userData = {
-          id: 1,
-          name: 'John Doe',
-          email: email,
-          phone: '+1234567890',
-          profilePicture: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-        };
-        const token = 'mock-jwt-token-12345';
-        
-        localStorage.setItem('token', token);
-        localStorage.setItem('userData', JSON.stringify(userData));
+      const result = await apiLogin(username.trim(), password, 'CUSTOMER');
+      if (result.token) {
+        localStorage.setItem('token', result.token);
+        const userData = await getCustomerDetails();
+        console.log('Customer details after login:', userData);
         setUser(userData);
         return { success: true };
       } else {
-        return { success: false, error: 'Invalid credentials' };
+        return { success: false, error: result.error || 'Login failed' };
       }
     } catch (error) {
-      return { success: false, error: 'Login failed' };
+      return { success: false, error: error.message || 'Login failed' };
     }
   };
 
-  const register = async (userData) => {
+  const loginWithGoogle = async (token) => {
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newUser = {
-        id: Date.now(),
-        ...userData,
-        profilePicture: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-      };
-      const token = 'mock-jwt-token-12345';
-      
       localStorage.setItem('token', token);
-      localStorage.setItem('userData', JSON.stringify(newUser));
-      setUser(newUser);
+      const userData = await getCustomerDetails();
+      setUser(userData);
       return { success: true };
     } catch (error) {
-      return { success: false, error: 'Registration failed' };
+      return { success: false, error: 'Google login failed' };
+    }
+  };
+
+  const register = async (role, userData) => {
+    try {
+      const result = await apiRegister(role, userData);
+      return result;
+    } catch (error) {
+      return { success: false, error: error.message || 'Registration failed' };
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('userData');
     setUser(null);
   };
 
   const updateProfile = (updatedData) => {
-    const updatedUser = { ...user, ...updatedData };
-    localStorage.setItem('userData', JSON.stringify(updatedUser));
-    setUser(updatedUser);
+    setUser((prev) => ({ ...prev, ...updatedData }));
   };
 
   const value = {
     user,
     login,
+    loginWithGoogle,
     register,
     logout,
     updateProfile,
