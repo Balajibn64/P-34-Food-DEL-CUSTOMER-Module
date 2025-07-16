@@ -91,7 +91,14 @@ const LoginPage = () => {
         loginWithGoogle(event.data.token).then(result => {
           if (result.success) {
             window.location.href = "/";
+          } else {
+            // Handle OAuth2 login failure
+            console.error('Google login failed:', result.error);
+            setErrors({ general: 'Google login failed. Please try again or use email/password login.' });
           }
+        }).catch(error => {
+          console.error('Google login error:', error);
+          setErrors({ general: 'Google login failed. Please try again or use email/password login.' });
         });
       }
     };
@@ -102,8 +109,10 @@ const LoginPage = () => {
     setTimeout(() => {
       if (popup && !popup.closed) {
         console.log("Popup is still open - user may need to close it manually");
+        popup.close();
+        setErrors({ general: 'Google login timed out. Please try again.' });
       }
-    }, 10000); // 10 seconds timeout
+    }, 30000); // 30 seconds timeout
   };
   
   return (
@@ -112,9 +121,6 @@ const LoginPage = () => {
         <div className="text-center">
           <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
           <p className="mt-2 text-gray-600">Sign in to your account</p>
-          <p className="mt-2 text-sm text-gray-500">
-            Demo: email: demo@example.com, password: password
-          </p>
         </div>
         
         <form className="mt-8 space-y-6 bg-white p-8 rounded-xl shadow-lg" onSubmit={handleSubmit}>

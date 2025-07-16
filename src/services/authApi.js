@@ -12,4 +12,10 @@ export const login = async (email, password, userType) => {
 export const register = async (role, data) => {
   const response = await axiosInstance.post(`/auth/register/${role}`, data);
   return response.data;
+};
+
+// Google login (frontend-only, as before)
+export const loginWithGoogle = async (googleToken) => {
+  localStorage.setItem('token', googleToken);
+  return { token: googleToken };
 }; 

@@ -90,12 +90,12 @@ const RegisterPage = () => {
     if (result.success) {
       // Auto-login after registration
       setLoading(true);
-      const loginResult = await login(formData.name, formData.password);
+      const loginResult = await login(formData.email, formData.password);
       setLoading(false);
       if (loginResult.success) {
         navigate('/');
       } else {
-        setErrors({ general: 'Registration succeeded, but login failed. Please sign in.' });
+        alert('Registration successful! Please sign in.');
         navigate('/login');
       }
     } else {

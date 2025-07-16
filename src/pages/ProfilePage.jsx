@@ -4,6 +4,7 @@ import { updateCustomerDetails, addAddress, editAddress, deleteAddress, getUserA
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import defaultProfile from '../assets/default_profile.png';
 import AddressMapPicker from '../components/AddressMapPicker';
 import { User, Mail, Phone, MapPin, Edit2, Save, X } from 'lucide-react';
 
@@ -30,7 +31,7 @@ const ProfilePage = () => {
         email: user.email || '',
         phone: user.phone || ''
       });
-      setProfileImgPreview(user.profilePic || user.profile_pic || '/default-avatar.png');
+      setProfileImgPreview(user.profilePic || user.profile_pic || defaultProfile);
     }
   }, [user]);
   
@@ -54,22 +55,39 @@ const ProfilePage = () => {
   ]);
   // Modal state for address add/edit
   const [showAddressModal, setShowAddressModal] = useState(false);
+  // Address form state
   const [addressForm, setAddressForm] = useState({
     id: null,
     addressName: '',
-    address: '', // street
+    street: '', // street name only
+    fullAddress: '', // complete formatted address
     city: '',
     state: '',
     zipCode: '', // pincode
     country: '',
     latitude: '',
     longitude: '',
+    landmark: '', // landmark
   });
   const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [addressToDelete, setAddressToDelete] = useState(null);
 
   // Open modal for add
   const handleAddAddressClick = () => {
-    setAddressForm({ id: null, addressName: '', address: '', city: '', state: '', zipCode: '', country: '', latitude: '', longitude: '' });
+    setAddressForm({ 
+      id: null, 
+      addressName: '', 
+      street: '', // street name only
+      fullAddress: '', // complete formatted address
+      city: '', 
+      state: '', 
+      zipCode: '', 
+      country: '', 
+      latitude: '', 
+      longitude: '', 
+      landmark: '' 
+    });
     setIsEditingAddress(false);
     setShowAddressModal(true);
   };
@@ -78,13 +96,15 @@ const ProfilePage = () => {
     setAddressForm({
       id: address.id,
       addressName: address.addressName || '',
-      address: address.street || address.address || '',
+      street: address.street || address.address || '',
+      fullAddress: address.fullAddress || '',
       city: address.city || '',
       state: address.state || '',
       zipCode: address.pincode || address.zipCode || '',
       country: address.country || '',
       latitude: address.latitude || '',
       longitude: address.longitude || '',
+      landmark: address.landmark || '',
     });
     setIsEditingAddress(true);
     setShowAddressModal(true);
@@ -112,15 +132,30 @@ const ProfilePage = () => {
       alert('Failed to save address');
     }
   };
+  // Show delete confirmation
+  const handleDeleteClick = (address) => {
+    setAddressToDelete(address);
+    setShowDeleteConfirm(true);
+  };
+
   // Delete address
-  const handleDeleteAddress = async (id) => {
-    if (!window.confirm('Delete this address?')) return;
+  const handleDeleteAddress = async () => {
+    if (!addressToDelete) return;
+    
     try {
-      const updatedAddresses = await deleteAddress(id);
+      const updatedAddresses = await deleteAddress(addressToDelete.id);
       setAddresses(updatedAddresses);
+      setShowDeleteConfirm(false);
+      setAddressToDelete(null);
     } catch (err) {
       alert('Failed to delete address');
     }
+  };
+
+  // Cancel delete
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setAddressToDelete(null);
   };
   
   const handleInputChange = (e) => {
@@ -173,7 +208,7 @@ const ProfilePage = () => {
       phone: user?.phone || ''
     });
     setProfileImg(null);
-    setProfileImgPreview(user?.profile_pic || '/default-avatar.png');
+    setProfileImgPreview(user?.profilePic || user?.profile_pic || defaultProfile);
     setIsEditing(false);
   };
   
@@ -261,7 +296,7 @@ const ProfilePage = () => {
                       alt={getDisplayName()}
                       className="w-20 h-20 rounded-full object-cover bg-gray-200"
                       onError={(e) => {
-                        e.target.src = '/default-avatar.png';
+                        e.target.src = defaultProfile;
                       }}
                     />
                     {/* Edit overlay */}
@@ -361,24 +396,38 @@ const ProfilePage = () => {
                     <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
                     <div>
                       <div className="flex items-center space-x-2">
-                        <p className="font-medium text-gray-900">{address.type}</p>
+                        <p className="font-bold text-gray-900">
+                          {address.addressName || address.type}
+                        </p>
                         {address.isDefault && (
                           <span className="px-2 py-1 text-xs bg-orange-100 text-orange-600 rounded-full">
                             Default
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{address.address}</p>
-                      <p className="text-sm text-gray-600">
-                        {address.city}, {address.zipCode}
+                      <p className="text-sm text-gray-600 mt-1">
+                        {address.fullAddress || address.address}
                       </p>
+                      {address.landmark && (
+                        <p className="text-sm text-gray-500">
+                          Landmark : {address.landmark}
+                        </p>
+                      )}
+                      <p className="text-sm text-gray-600">
+                        {address.street}, {address.city} {address.zipCode}
+                      </p>
+                      {address.state && (
+                        <p className="text-sm text-gray-600">
+                          {address.state}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex space-x-2">
                     <Button size="sm" variant="outline" onClick={() => handleEditAddressClick(address)}>
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDeleteAddress(address.id)}>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(address)}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -388,19 +437,33 @@ const ProfilePage = () => {
           </div>
          {/* Address Modal */}
          {showAddressModal && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-               <h3 className="text-lg font-semibold mb-4">{isEditingAddress ? 'Edit Address' : 'Add Address'}</h3>
-               <div className="space-y-3">
+           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 transition-opacity duration-200 animate-fadeIn">
+             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative flex flex-col">
+               {/* Sticky Header with Cancel (X) mark */}
+               <div className="sticky top-0 z-10 bg-white border-b border-gray-200 flex items-center gap-2 px-6 py-4 shadow-sm">
+                 <span className="inline-block bg-orange-100 text-orange-600 rounded-full p-2">
+                   <MapPin className="h-5 w-5" />
+                 </span>
+                 <h3 className="text-lg font-semibold text-gray-900 flex-1">
+                   {isEditingAddress ? 'Edit Address' : 'Add Address'}
+                 </h3>
+                 <button
+                   className="text-gray-400 hover:text-red-500 transition-colors text-xl font-bold focus:outline-none ml-2 focus:ring-2 focus:ring-red-300 rounded-full"
+                   onClick={() => setShowAddressModal(false)}
+                   aria-label="Close"
+                 >
+                   <span aria-hidden="true">&times;</span>
+                 </button>
+               </div>
+               {/* Form Content */}
+               <div className="flex-1 px-6 py-4 space-y-4">
                  <Input label="Address Name" name="addressName" value={addressForm.addressName} onChange={handleAddressFormChange} />
-                 <Input label="Street" name="address" value={addressForm.address} onChange={handleAddressFormChange} />
+                 <Input label="Street" name="street" value={addressForm.street} onChange={handleAddressFormChange} />
+                 <Input label="Landmark" name="landmark" value={addressForm.landmark} onChange={handleAddressFormChange} />
                  <Input label="City" name="city" value={addressForm.city} onChange={handleAddressFormChange} />
                  <Input label="State" name="state" value={addressForm.state} onChange={handleAddressFormChange} />
                  <Input label="Pincode" name="zipCode" value={addressForm.zipCode} onChange={handleAddressFormChange} />
-                 <Input label="Country" name="country" value={addressForm.country} onChange={handleAddressFormChange} />
-                 <Input label="Latitude" name="latitude" value={addressForm.latitude} onChange={handleAddressFormChange} type="number" />
-                 <Input label="Longitude" name="longitude" value={addressForm.longitude} onChange={handleAddressFormChange} type="number" />
-                 
+                 <Input label="Full Address" name="fullAddress" value={addressForm.fullAddress} onChange={handleAddressFormChange} />
                  {/* Map Picker Component */}
                  <AddressMapPicker
                    addressForm={addressForm}
@@ -410,13 +473,57 @@ const ProfilePage = () => {
                    }}
                  />
                </div>
-               <div className="flex justify-end space-x-2 mt-6">
-                 <Button variant="secondary" onClick={() => setShowAddressModal(false)}>Cancel</Button>
-                 <Button variant="success" onClick={handleAddressFormSave}>{isEditingAddress ? 'Save' : 'Add'}</Button>
+               {/* Sticky Footer Buttons */}
+               <div className="sticky bottom-0 z-10 bg-white border-t border-gray-200 px-6 py-4 flex justify-end space-x-2 shadow-sm">
+                 <Button variant="secondary" onClick={() => setShowAddressModal(false)} className="focus:ring-2 focus:ring-orange-300">
+                   Cancel
+                 </Button>
+                 <Button variant="success" onClick={handleAddressFormSave} className="focus:ring-2 focus:ring-green-300">
+                   {isEditingAddress ? 'Save' : 'Add'}
+                 </Button>
                </div>
              </div>
            </div>
          )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+              <div className="flex items-center mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <X className="h-5 w-5 text-red-600" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Address</h3>
+                  <p className="text-sm text-gray-500">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700 mb-2">Are you sure you want to delete this address?</p>
+                {addressToDelete && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="font-medium text-gray-900">{addressToDelete.type}</p>
+                    <p className="text-sm text-gray-600">{addressToDelete.fullAddress || addressToDelete.address}</p>
+                    <p className="text-sm text-gray-600">
+                      {addressToDelete.city}, {addressToDelete.state} {addressToDelete.zipCode}
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <Button variant="secondary" onClick={handleCancelDelete}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleDeleteAddress}>
+                  Delete Address
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         </Card>
       </div>
     </div>

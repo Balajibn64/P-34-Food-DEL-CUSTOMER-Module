@@ -22,18 +22,26 @@ const HomePage = () => {
   }, []);
   
   const loadData = async () => {
+    setLoading(true);
+    setCategoriesLoading(true);
     try {
-      const [restaurantsData, categoriesData] = await Promise.all([
-        searchRestaurants('', location),
-        getCategories()
-      ]);
-      setRestaurants(restaurantsData);
+      // Fetch categories
+      const categoriesData = await getCategories();
       setCategories(categoriesData);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading categories:', error);
+    } finally {
+      setCategoriesLoading(false);
+    }
+
+    try {
+      // Fetch restaurants
+      const restaurantsData = await searchRestaurants('', location);
+      setRestaurants(restaurantsData);
+    } catch (error) {
+      console.error('Error loading restaurants:', error);
     } finally {
       setLoading(false);
-      setCategoriesLoading(false);
     }
   };
   

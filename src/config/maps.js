@@ -16,6 +16,7 @@ export const MAPS_CONFIG = {
   defaultCenter: { lat: 20.5937, lng: 78.9629 }, // India
   defaultZoom: 4,
   streetZoom: 15,
+  mapId: 'YOUR_GOOGLE_MAPS_MAP_ID', // <-- Add your Google Maps Map ID here
   mapOptions: {
     streetViewControl: false,
     fullscreenControl: false,

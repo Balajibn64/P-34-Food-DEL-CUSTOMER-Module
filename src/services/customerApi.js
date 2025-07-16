@@ -10,8 +10,12 @@ export const getCustomerDetails = async () => {
       'Content-Type': 'multipart/form-data',
     },
   });
+  // Handle new backend structure: { token, r }
+  if (response.data.token) {
+    localStorage.setItem('token', response.data.token);
+  }
   console.log('getCustomerDetails response:', response.data);
-  return response.data;
+  return response.data.r; // Return only the customer details object
 };
 
 export const updateCustomerDetails = async (customerData, profilePic = null) => {
@@ -48,13 +52,16 @@ export const updateCustomerDetails = async (customerData, profilePic = null) => 
     }
   }
   
+  // The old token will be sent automatically by axiosInstance
   const response = await axiosInstance.post('/customer/details', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
+  // After receiving the response, update localStorage with the new token (if present)
+  if (response.data.token) {
+    localStorage.setItem('token', response.data.token);
+  }
   console.log('updateCustomerDetails response:', response.data);
-  return response.data;
+  return response.data.r;
 };
 
 // Get all addresses (no body needed)
@@ -67,13 +74,15 @@ export const getUserAddresses = async () => {
 const mapToAddressDTO = (form) => ({
   id: form.id,
   addressName: form.addressName || '',
-  street: form.address, // assuming 'address' in form is 'street' in backend
+  street: form.street, // use 'street' from form
   city: form.city,
   state: form.state || '',
   pincode: form.zipCode || '',
   country: form.country || '',
   latitude: form.latitude || null,
   longitude: form.longitude || null,
+  landmark: form.landmark || '', // include landmark
+  fulladdress: form.fullAddress || '', // use fulladdress (all lowercase)
 });
 
 // Add a new address

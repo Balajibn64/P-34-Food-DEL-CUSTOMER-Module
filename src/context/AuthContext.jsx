@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { login as apiLogin, register as apiRegister } from '../services/authApi';
+import { login as apiLogin, register as apiRegister, loginWithGoogle as apiLoginWithGoogle } from '../services/authApi';
 import { getCustomerDetails } from '../services/customerApi';
 
 const AuthContext = createContext();
@@ -53,10 +53,15 @@ export const AuthProvider = ({ children }) => {
 
   const loginWithGoogle = async (token) => {
     try {
-      localStorage.setItem('token', token);
-      const userData = await getCustomerDetails();
-      setUser(userData);
-      return { success: true };
+      const result = await apiLoginWithGoogle(token);
+      if (result.token) {
+        localStorage.setItem('token', result.token);
+        const userData = await getCustomerDetails();
+        setUser(userData);
+        return { success: true };
+      } else {
+        return { success: false, error: result.error || 'Google login failed' };
+      }
     } catch (error) {
       return { success: false, error: 'Google login failed' };
     }
