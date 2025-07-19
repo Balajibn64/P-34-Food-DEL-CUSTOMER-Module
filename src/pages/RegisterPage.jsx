@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -95,7 +96,7 @@ const RegisterPage = () => {
       if (loginResult.success) {
         navigate('/');
       } else {
-        alert('Registration successful! Please sign in.');
+        toast.success('Registration successful! Please sign in.');
         navigate('/login');
       }
     } else {

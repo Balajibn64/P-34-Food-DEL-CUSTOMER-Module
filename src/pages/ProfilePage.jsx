@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { updateCustomerDetails, addAddress, editAddress, deleteAddress, getUserAddresses } from '../services/customerApi';
+import { updateCustomerDetails, addAddress, editAddress, deleteAddress, getUserAddresses, setDefaultAddress } from '../services/customerApi';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -120,16 +121,26 @@ const ProfilePage = () => {
   // Save address (add or edit)
   const handleAddressFormSave = async () => {
     try {
-      let updatedAddresses;
+      const addressPayload = {
+        ...addressForm,
+        defaultAddress: !!addressForm.defaultAddress // always boolean
+      };
       if (isEditingAddress) {
-        updatedAddresses = await editAddress(addressForm);
+        await editAddress(addressPayload);
       } else {
-        updatedAddresses = await addAddress(addressForm);
+        await addAddress(addressPayload);
       }
-      setAddresses(updatedAddresses);
+      // Always fetch the latest addresses from backend
+      const freshAddresses = await getUserAddresses();
+      const addressesWithFullAddress = freshAddresses.map(addr => ({
+        ...addr,
+        fullAddress: addr.fullAddress || addr.address || [addr.street, addr.city, addr.state, addr.zipCode, addr.country].filter(Boolean).join(', ')
+      }));
+      setAddresses(addressesWithFullAddress);
       setShowAddressModal(false);
+      toast.success('Address saved successfully!');
     } catch (err) {
-      alert('Failed to save address');
+      toast.error('Failed to save address');
     }
   };
   // Show delete confirmation
@@ -143,12 +154,19 @@ const ProfilePage = () => {
     if (!addressToDelete) return;
     
     try {
-      const updatedAddresses = await deleteAddress(addressToDelete.id);
-      setAddresses(updatedAddresses);
+      await deleteAddress(addressToDelete);
+      // Always fetch the latest addresses from backend
+      const freshAddresses = await getUserAddresses();
+      const addressesWithFullAddress = freshAddresses.map(addr => ({
+        ...addr,
+        fullAddress: addr.fullAddress || addr.address || [addr.street, addr.city, addr.state, addr.zipCode, addr.country].filter(Boolean).join(', ')
+      }));
+      setAddresses(addressesWithFullAddress);
       setShowDeleteConfirm(false);
       setAddressToDelete(null);
+      toast.success('Address deleted successfully!');
     } catch (err) {
-      alert('Failed to delete address');
+      toast.error('Failed to delete address');
     }
   };
 
@@ -173,7 +191,7 @@ const ProfilePage = () => {
       // Check file size (5MB limit)
       const maxSize = 5 * 1024 * 1024; // 5MB in bytes
       if (file.size > maxSize) {
-        alert('File size must be less than 5MB. Please choose a smaller image.');
+        toast.error('File size must be less than 5MB. Please choose a smaller image.');
         return;
       }
       
@@ -192,9 +210,10 @@ const ProfilePage = () => {
         setProfileImgPreview(updatedData.profilePic || updatedData.profile_pic);
       }
       setIsEditing(false);
+      toast.success('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
-      // You might want to show an error message to the user here
+      toast.error('Failed to update profile');
     } finally {
       setLoading(false);
     }
@@ -234,7 +253,12 @@ const ProfilePage = () => {
     getUserAddresses()
       .then((data) => {
         if (Array.isArray(data)) {
-          setAddresses(data);
+          // Ensure fullAddress is set for each address
+          const addressesWithFullAddress = data.map(addr => ({
+            ...addr,
+            fullAddress: addr.fullAddress || addr.address || [addr.street, addr.city, addr.state, addr.zipCode, addr.country].filter(Boolean).join(', ')
+          }));
+          setAddresses(addressesWithFullAddress);
         } else {
           setAddresses([]); // fallback if backend returns non-array
         }
@@ -244,6 +268,23 @@ const ProfilePage = () => {
         console.error('Failed to fetch addresses:', err);
       });
   }, [user]);
+
+  // Update handleSetDefault to always send defaultAddress as boolean for all addresses
+  const handleSetDefault = async (addressId) => {
+    try {
+      await setDefaultAddress(addressId);
+      // Re-fetch addresses to update UI
+      const freshAddresses = await getUserAddresses();
+      const addressesWithFullAddress = freshAddresses.map(addr => ({
+        ...addr,
+        fullAddress: addr.fullAddress || addr.address || [addr.street, addr.city, addr.state, addr.zipCode, addr.country].filter(Boolean).join(', ')
+      }));
+      setAddresses(addressesWithFullAddress);
+      toast.success('Default address set successfully!');
+    } catch (err) {
+      toast.error('Failed to set default address');
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -389,31 +430,38 @@ const ProfilePage = () => {
             {Array.isArray(addresses) && addresses.map((address) => (
               <div
                 key={address.id}
-                className="p-4 border rounded-lg hover:border-orange-500 transition-colors"
+                className={`relative p-4 border rounded-xl shadow-sm transition-all duration-200 bg-white hover:shadow-lg flex flex-col justify-between h-full ${address.defaultAddress ? 'border-orange-500 ring-2 ring-orange-200' : 'border-gray-200'}`}
+                style={{ minHeight: '160px' }}
               >
-                <div className="flex items-start justify-between">
+                {/* Top-right: Default badge or Set as Default button */}
+                <div className="absolute top-2 right-2 flex flex-col items-end space-y-2 z-10">
+                  {address.defaultAddress ? (
+                    <span className="px-3 py-1 text-xs font-bold bg-gradient-to-r from-orange-400 to-orange-600 text-white rounded-full shadow-md">
+                      Default
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleSetDefault(address.id)}
+                      className="px-3 py-1 text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200 rounded-full shadow hover:bg-orange-100 transition"
+                    >
+                      Set as Default
+                    </button>
+                  )}
+                </div>
                   <div className="flex items-start space-x-3">
-                    <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
+                  <MapPin className="h-5 w-5 text-orange-500 mt-0.5" />
                     <div>
                       <div className="flex items-center space-x-2">
-                        <p className="font-bold text-gray-900">
+                      <p className="font-bold text-gray-900 text-lg">
                           {address.addressName || address.type}
                         </p>
-                        {address.isDefault && (
-                          <span className="px-2 py-1 text-xs bg-orange-100 text-orange-600 rounded-full">
-                            Default
-                          </span>
-                        )}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {address.fullAddress || address.address}
-                      </p>
                       {address.landmark && (
                         <p className="text-sm text-gray-500">
-                          Landmark : {address.landmark}
+                        <span className="font-medium text-gray-700">Landmark:</span> {address.landmark}
                         </p>
                       )}
-                      <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-700 mt-1">
                         {address.street}, {address.city} {address.zipCode}
                       </p>
                       {address.state && (
@@ -423,14 +471,14 @@ const ProfilePage = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex space-x-2">
+                {/* Bottom-right: Edit/Delete buttons */}
+                <div className="absolute bottom-2 right-2 flex space-x-2">
                     <Button size="sm" variant="outline" onClick={() => handleEditAddressClick(address)}>
                       <Edit2 className="h-4 w-4" />
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(address)}>
                       <X className="h-4 w-4" />
                     </Button>
-                  </div>
                 </div>
               </div>
             ))}

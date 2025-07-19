@@ -1,7 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { RestaurantProvider } from './context/RestaurantContext';
 import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -85,6 +88,7 @@ const AppRoutes = () => {
           ) : <Navigate to="/login" />
         } />
       </Routes>
+      <ToastContainer />
     </div>
   );
 };
@@ -93,9 +97,23 @@ function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
+        <RestaurantProvider>
+          <Router>
+            <AppRoutes />
+            <ToastContainer 
+              position="top-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="light"
+            />
+          </Router>
+        </RestaurantProvider>
       </CartProvider>
     </AuthProvider>
   );

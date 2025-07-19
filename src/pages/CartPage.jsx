@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useCart } from '../context/CartContext';
-import { getUserAddresses } from '../services/customerApi';
+import { getUserAddresses, setDefaultAddress } from '../services/customerApi';
 // TODO: Move placeOrder to orderApi.js if not already
-import { placeOrder } from '../services/orderApi';
+import { createOrder, createRazorpayOrder, verifyRazorpayPayment } from '../services/orderApi';
+import { useRestaurant } from '../context/RestaurantContext';
+import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Plus, Minus, Trash2, MapPin, ShoppingBag } from 'lucide-react';
+import imgNotFound from '../assets/img_not_found.jpg';
 
 const CartPage = () => {
   const navigate = useNavigate();
@@ -24,6 +28,12 @@ const CartPage = () => {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState(false);
+  const [showAllAddresses, setShowAllAddresses] = useState(false);
+  const [orderForPayment, setOrderForPayment] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  
+  const { restaurant } = useRestaurant();
+  const { user } = useAuth();
   
   useEffect(() => {
     loadAddresses();
@@ -52,36 +62,108 @@ const CartPage = () => {
   const handleRemoveItem = (dishId) => {
     removeFromCart(dishId);
   };
+
+  const handleSelectAddress = async (address) => {
+    try {
+      await setDefaultAddress(address.id);
+      // Refresh addresses after setting default
+      const freshAddresses = await getUserAddresses();
+      setAddresses(freshAddresses);
+      setShowAllAddresses(false);
+    } catch (err) {
+      toast.error('Failed to set default address');
+    }
+  };
   
   const handlePlaceOrder = async () => {
-    if (!selectedAddress) {
-      alert('Please select a delivery address');
+    if (!defaultAddress) {
+      toast.warning('Please select a delivery address');
       return;
     }
-    
     setProcessingOrder(true);
-    
     try {
+      // Prepare CreateOrderDTO
+      const dishIds = cartItems.map(item => item.id);
+      const dishQuantities = {};
+      cartItems.forEach(item => { dishQuantities[item.id] = item.quantity; });
+      const amount = getTotalAmount() + 50 + 25; // subtotal + delivery fee + taxes
+      const deliveryAddressId = defaultAddress.id;
+      const restaurantId = cartItems[0]?.restaurantId;
       const orderData = {
-        items: cartItems,
-        address: selectedAddress,
-        total: getTotalAmount() + 50 + 25 // Adding delivery fee and taxes
+        dishIds,
+        amount,
+        deliveryAddressId,
+        restaurantId,
+        dishQuantities
       };
-      
-      const result = await placeOrder(orderData);
-      
-      if (result.success) {
-        clearCart();
-        alert('Order placed successfully!');
-        navigate('/orders');
+      const result = await createOrder(orderData);
+      if (result && result.id) {
+        setOrderForPayment(result); // Save order for payment
+        // Do not clear cart or redirect yet, wait for payment
+        handleRazorpayPayment(result);
       } else {
-        alert('Failed to place order. Please try again.');
+        toast.error('Failed to place order. Please try again.');
       }
     } catch (error) {
       console.error('Error placing order:', error);
-      alert('Failed to place order. Please try again.');
+      toast.error('Failed to place order. Please try again.');
     } finally {
       setProcessingOrder(false);
+    }
+  };
+
+  const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+  const handleRazorpayPayment = async (order) => {
+    try {
+      setPaymentLoading(true);
+      const razorpayOrder = await createRazorpayOrder(order.amount * 100, order.id); // amount in paise
+      const options = {
+        key: RAZORPAY_KEY_ID, // Use env variable
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: restaurantName,
+        description: 'Order Payment',
+        image: restaurantImage,
+        order_id: razorpayOrder.razorpayOrderId,
+        handler: function (response) {
+          setPaymentLoading(false);
+          handleVerifyPayment(response, order.id);
+        },
+        prefill: {
+          name: user?.first_name || user?.firstName || '',
+          email: user?.email || '',
+          contact: user?.phone || ''
+        },
+        theme: {
+          color: '#F37254'
+        },
+        modal: {
+          ondismiss: function() {
+            setPaymentLoading(false);
+            toast.info('Payment cancelled. You can try again or contact support.');
+          }
+        }
+      };
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      setPaymentLoading(false);
+      console.error('Failed to initiate payment:', error);
+      toast.error('Failed to initiate payment.');
+    }
+  };
+
+  const handleVerifyPayment = async (response, orderId) => {
+    try {
+      await verifyRazorpayPayment({ ...response, orderId });
+      clearCart();
+      toast.success('Payment successful! Your order has been placed and is being prepared.');
+      navigate('/orders', { replace: true });
+      // Optionally, force reload to fetch latest orders
+      window.location.reload();
+    } catch (error) {
+      toast.error('Payment verification failed. Please contact support.');
     }
   };
   
@@ -113,10 +195,26 @@ const CartPage = () => {
   const subtotal = getTotalAmount();
   const total = subtotal + deliveryFee + taxes;
   
+  // Find the default address from backend
+  const defaultAddress = addresses.find(addr => addr.defaultAddress) || addresses[0];
+  
+  // Get restaurant details from the first cart item
+  const restaurantName = cartItems[0]?.restaurantName || restaurant?.restaurantName || '';
+  const restaurantImage = cartItems[0]?.restaurantImage || restaurant?.resturantPic || '/default_restaurant.png';
+  
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Cart</h1>
+        {/* Restaurant Details */}
+        {cartItems.length > 0 && (
+          <div className="flex items-center mb-6 p-4 bg-white rounded-xl shadow">
+            <img src={restaurantImage} alt={restaurantName} className="w-20 h-20 object-cover rounded-lg mr-4" />
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{restaurantName}</h2>
+            </div>
+          </div>
+        )}
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
@@ -128,6 +226,12 @@ const CartPage = () => {
                     src={item.image}
                     alt={item.name}
                     className="w-16 h-16 object-cover rounded-lg"
+                    onError={e => {
+                      if (!e.target.src.includes('img_not_found.jpg')) {
+                        e.target.onerror = null;
+                        e.target.src = imgNotFound;
+                      }
+                    }}
                   />
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">{item.name}</h3>
@@ -172,23 +276,46 @@ const CartPage = () => {
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Delivery Address</h3>
               <div className="space-y-3">
-                {addresses.map((address) => (
+                {/* Show only the default address unless changing */}
+                {!showAllAddresses && defaultAddress && (
+                  <div className="p-3 rounded-lg border border-orange-500 bg-orange-50 flex justify-between items-start">
+                    <div className="flex items-start space-x-2">
+                      <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-gray-900">{defaultAddress.addressName || defaultAddress.type}</p>
+                        <p className="text-sm text-gray-600">{defaultAddress.fullAddress || ''}</p>
+                        {defaultAddress.street && <p className="text-sm text-gray-600">Street: {defaultAddress.street}</p>}
+                        {defaultAddress.landmark && <p className="text-sm text-gray-600">Landmark: {defaultAddress.landmark}</p>}
+                        <p className="text-sm text-gray-600">
+                          {defaultAddress.city}, {defaultAddress.state} {defaultAddress.zipCode}, {defaultAddress.country}
+                        </p>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => setShowAllAddresses(true)}>
+                      Change Address
+                    </Button>
+                  </div>
+                )}
+                {/* Show all addresses for selection if changing */}
+                {showAllAddresses && addresses.map((address) => (
                   <div
                     key={address.id}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedAddress?.id === address.id
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors mb-2 ${
+                      defaultAddress?.id === address.id
                         ? 'border-orange-500 bg-orange-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
-                    onClick={() => setSelectedAddress(address)}
+                    onClick={() => handleSelectAddress(address)}
                   >
                     <div className="flex items-start space-x-2">
                       <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
                       <div>
-                        <p className="font-medium text-gray-900">{address.type}</p>
-                        <p className="text-sm text-gray-600">{address.address}</p>
+                        <p className="font-medium text-gray-900">{address.addressName || address.type}</p>
+                        <p className="text-sm text-gray-600">{address.fullAddress || ''}</p>
+                        {address.street && <p className="text-sm text-gray-600">Street: {address.street}</p>}
+                        {address.landmark && <p className="text-sm text-gray-600">Landmark: {address.landmark}</p>}
                         <p className="text-sm text-gray-600">
-                          {address.city}, {address.zipCode}
+                          {address.city}, {address.state} {address.zipCode}, {address.country}
                         </p>
                       </div>
                     </div>
@@ -225,14 +352,22 @@ const CartPage = () => {
                 onClick={handlePlaceOrder}
                 loading={processingOrder}
                 className="w-full mt-6"
-                disabled={!selectedAddress}
+                disabled={!defaultAddress}
               >
-                Proceed to Pay
+                Pay Now
               </Button>
             </Card>
           </div>
         </div>
       </div>
+      {paymentLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">Processing Payment...</h2>
+            <LoadingSpinner size="lg" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

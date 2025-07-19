@@ -100,7 +100,12 @@ export const editAddress = async (addressForm) => {
 };
 
 // Delete an address
-export const deleteAddress = async (addressId) => {
-  const response = await axiosInstance.delete('/customer/address', { data: { id: addressId } });
-  return response.data; // This is the updated address list
+export const deleteAddress = async (address) => {
+  const response = await axiosInstance.delete('/customer/address', { data: address });
+  return response.data;
 }; 
+
+export async function setDefaultAddress(addressId) {
+  // Adjust the endpoint/method as per your backend API
+  return axiosInstance.put('/customer/address/default', null, { params: { addressId } });
+} 

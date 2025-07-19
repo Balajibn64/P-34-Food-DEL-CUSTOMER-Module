@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { toast } from 'react-toastify';
 import { Loader } from '@googlemaps/js-api-loader';
 import { GOOGLE_MAPS_API_KEY, MAPS_CONFIG } from '../config/maps';
 
@@ -114,6 +115,13 @@ export const reverseGeocode = async (latitude, longitude, apiKey) => {
       comp.types.includes('country')
     )?.long_name || '';
     
+    // Extract main area
+    const mainArea =
+      addressComponents.find(comp => comp.types.includes('sublocality_level_1'))?.long_name ||
+      addressComponents.find(comp => comp.types.includes('sublocality'))?.long_name ||
+      addressComponents.find(comp => comp.types.includes('locality'))?.long_name ||
+      '';
+    
     return {
       street, // Street field contains only street name
       fullAddress: result.formatted_address, // Full address field contains complete address
@@ -121,6 +129,7 @@ export const reverseGeocode = async (latitude, longitude, apiKey) => {
       state,
       zipCode,
       country,
+      mainArea, // <-- add this
     };
   } catch (error) {
     console.error('Reverse geocoding error:', error);
@@ -206,8 +215,14 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
             setMarker(null);
           }
 
-          // Create new marker
-          const newMarker = new google.maps.marker.AdvancedMarkerElement({
+          // Create new marker with defensive check
+          if (
+            window.google &&
+            window.google.maps &&
+            window.google.maps.marker &&
+            window.google.maps.marker.AdvancedMarkerElement
+          ) {
+            const newMarker = new window.google.maps.marker.AdvancedMarkerElement({
             position: place.geometry.location,
             map: mapInstance,
             gmpDraggable: true,
@@ -223,6 +238,9 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
               longitude: newPosition.lng(),
             }));
           });
+          } else {
+            setMapError('Google Maps marker library failed to load. Please refresh the page.');
+          }
 
           // Auto-fill address if available
           if (place.formatted_address) {
@@ -304,7 +322,13 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
 
       // Add marker if coordinates exist
       if (addressForm.latitude && addressForm.longitude) {
-        const markerInstance = new google.maps.marker.AdvancedMarkerElement({
+        if (
+          window.google &&
+          window.google.maps &&
+          window.google.maps.marker &&
+          window.google.maps.marker.AdvancedMarkerElement
+        ) {
+          const markerInstance = new window.google.maps.marker.AdvancedMarkerElement({
           position: { lat: Number(addressForm.latitude), lng: Number(addressForm.longitude) },
           map: mapInstance,
           gmpDraggable: true,
@@ -320,6 +344,9 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
             longitude: position.lng(),
           }));
         });
+        } else {
+          setMapError('Google Maps marker library failed to load. Please refresh the page.');
+        }
       }
 
       // Add click listener to map
@@ -340,7 +367,13 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
         }
 
         // Create new marker
-        const newMarker = new google.maps.marker.AdvancedMarkerElement({
+        if (
+          window.google &&
+          window.google.maps &&
+          window.google.maps.marker &&
+          window.google.maps.marker.AdvancedMarkerElement
+        ) {
+          const newMarker = new window.google.maps.marker.AdvancedMarkerElement({
           position,
           map: mapInstance,
           gmpDraggable: true,
@@ -356,6 +389,9 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
             longitude: newPosition.lng(),
           }));
         });
+        } else {
+          setMapError('Google Maps marker library failed to load. Please refresh the page.');
+        }
       });
 
     }).catch((error) => {
@@ -382,7 +418,13 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
       }
 
       // Create new marker
-      const newMarker = new google.maps.marker.AdvancedMarkerElement({
+      if (
+        window.google &&
+        window.google.maps &&
+        window.google.maps.marker &&
+        window.google.maps.marker.AdvancedMarkerElement
+      ) {
+        const newMarker = new window.google.maps.marker.AdvancedMarkerElement({
         position,
         map,
         gmpDraggable: true,
@@ -398,6 +440,9 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
           longitude: newPosition.lng(),
         }));
       });
+      } else {
+        setMapError('Google Maps marker library failed to load. Please refresh the page.');
+      }
     }
   }, [addressForm.latitude, addressForm.longitude, map]);
 
@@ -473,7 +518,13 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
         }
 
         // Create new marker
-        const newMarker = new google.maps.marker.AdvancedMarkerElement({
+        if (
+          window.google &&
+          window.google.maps &&
+          window.google.maps.marker &&
+          window.google.maps.marker.AdvancedMarkerElement
+        ) {
+          const newMarker = new window.google.maps.marker.AdvancedMarkerElement({
           position,
           map,
           gmpDraggable: true,
@@ -489,6 +540,9 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
             longitude: newPosition.lng(),
           }));
         });
+        } else {
+          setMapError('Google Maps marker library failed to load. Please refresh the page.');
+        }
       }
       
       // Automatically fetch and fill address details
@@ -526,12 +580,12 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
   // Handle reverse geocoding
   const handleReverseGeocode = useCallback(async () => {
     if (!addressForm.latitude || !addressForm.longitude) {
-      alert('Please set a location first (click on map or use "Use My Location")');
+      toast.error('Please set a location first (click on map or use "Use My Location")');
       return;
     }
 
     if (!GOOGLE_MAPS_API_KEY) {
-      alert('Please set up your Google Maps API key in the .env file to use reverse geocoding');
+      toast.warning('Please set up your Google Maps API key in the .env file to use reverse geocoding');
       return;
     }
 
@@ -561,7 +615,7 @@ const AddressMapPicker = ({ addressForm, setAddressForm, onAddressUpdate }) => {
     } catch (error) {
       console.error('Geocoding error:', error);
       setMapError(error.message);
-      alert('Failed to fetch address details. Please fill manually.');
+      toast.error('Failed to fetch address details. Please fill manually.');
     } finally {
       setIsGeocoding(false);
     }
