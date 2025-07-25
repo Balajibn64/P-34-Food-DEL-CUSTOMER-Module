@@ -8,6 +8,7 @@ import imgNotFound from '../assets/img_not_found.jpg';
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDeliveredOnly, setShowDeliveredOnly] = useState(false);
   
   useEffect(() => {
     loadOrders();
@@ -27,13 +28,15 @@ const OrdersPage = () => {
   
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'delivered':
+      case 'DELIVERED':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'cancelled':
+      case 'CANCELLED':
+      case 'REJECTED':
         return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'confirmed':
-      case 'preparing':
-      case 'on_the_way':
+      case 'PREPARING':
+      case 'READY_FOR_PICKUP':
+      case 'ON_THE_WAY':
+      case 'CREATED':
         return <Clock className="h-5 w-5 text-orange-500" />;
       default:
         return <Package className="h-5 w-5 text-gray-500" />;
@@ -42,23 +45,21 @@ const OrdersPage = () => {
   
   const getStatusText = (status) => {
     if (!status) return 'Pending';
-    switch (status.toLowerCase()) {
-      case 'delivered':
+    switch (status.toUpperCase()) {
+      case 'DELIVERED':
         return 'Delivered';
-      case 'cancelled':
+      case 'CANCELLED':
         return 'Cancelled';
-      case 'confirmed':
-        return 'Confirmed';
-      case 'preparing':
-        return 'Preparing';
-      case 'on_the_way':
-        return 'On the way';
-      case 'created':
+      case 'REJECTED':
+        return 'Rejected';
+      case 'CREATED':
         return 'Order Placed';
-      case 'paid':
-        return 'Paid';
-      case 'pending':
-        return 'Pending';
+      case 'PREPARING':
+        return 'Preparing';
+      case 'READY_FOR_PICKUP':
+        return 'Ready for Pickup';
+      case 'ON_THE_WAY':
+        return 'On the Way';
       default:
         return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
     }
@@ -66,21 +67,18 @@ const OrdersPage = () => {
   
   const getStatusColor = (status) => {
     if (!status) return 'text-yellow-700 bg-yellow-100';
-    switch (status.toLowerCase()) {
-      case 'delivered':
+    switch (status.toUpperCase()) {
+      case 'DELIVERED':
         return 'text-green-700 bg-green-100';
-      case 'cancelled':
+      case 'CANCELLED':
+      case 'REJECTED':
         return 'text-red-700 bg-red-100';
-      case 'confirmed':
-      case 'preparing':
-      case 'on_the_way':
+      case 'PREPARING':
+      case 'READY_FOR_PICKUP':
+      case 'ON_THE_WAY':
         return 'text-orange-700 bg-orange-100';
-      case 'created':
+      case 'CREATED':
         return 'text-blue-700 bg-blue-100';
-      case 'paid':
-        return 'text-green-700 bg-green-100';
-      case 'pending':
-        return 'text-yellow-700 bg-yellow-100';
       default:
         return 'text-gray-700 bg-gray-100';
     }
@@ -134,11 +132,21 @@ const OrdersPage = () => {
     );
   }
   
+  const ACTIVE_STATUSES = ['CREATED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY'];
+  const COMPLETED_STATUSES = ['DELIVERED', 'CANCELLED', 'REJECTED'];
+  
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">My Orders</h1>
-        
+        <div className="mb-6 flex gap-4">
+          <button
+            className={`px-4 py-2 rounded font-semibold border transition-colors ${showDeliveredOnly ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-orange-600 border-orange-500 hover:bg-orange-50'}`}
+            onClick={() => setShowDeliveredOnly(!showDeliveredOnly)}
+          >
+            {showDeliveredOnly ? 'Show Active Orders' : 'Show Completed Orders'}
+          </button>
+        </div>
         {!Array.isArray(orders) || orders.length === 0 ? (
           <div className="text-center py-12">
             <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -147,7 +155,10 @@ const OrdersPage = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {orders.map((entry, idx) => {
+            {(showDeliveredOnly
+              ? orders.filter(entry => COMPLETED_STATUSES.includes(entry.order?.status))
+              : orders.filter(entry => ACTIVE_STATUSES.includes(entry.order?.status))
+            ).map((entry, idx) => {
               const order = entry.order;
               const restaurant = entry.restaurantDetails?.rdto;
               if (!order) return null;
@@ -197,6 +208,38 @@ const OrdersPage = () => {
                     </div>
                   </div>
                 </div>
+                    )}
+                    {/* Rider Assigned Details */}
+                    {order.riderAssigned && entry.rider ? (
+                      <div className="relative bg-white rounded-lg p-4 mb-4 border-l-4 border-blue-500 shadow-md flex items-center gap-4">
+                        <div className="absolute top-2 right-2 bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">Assigned Rider</div>
+                        {entry.rider.profilePic ? (
+                          <img src={entry.rider.profilePic} alt={entry.rider.username} className="w-14 h-14 object-cover rounded-full border-2 border-blue-300 shadow-sm" />
+                        ) : (
+                          <div className="w-14 h-14 flex items-center justify-center rounded-full bg-blue-200 text-blue-700 font-bold text-2xl border-2 border-blue-300 shadow-sm">
+                            {entry.rider.username ? entry.rider.username.charAt(0).toUpperCase() : '?'}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-blue-900 text-lg mb-1 flex items-center gap-2">
+                            <span>{entry.rider.username}</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-blue-700 text-sm">
+                            <a href={`tel:${entry.rider.phone}`} className="flex items-center gap-1 hover:text-blue-900 transition-colors">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h2.28a2 2 0 011.94 1.515l.3 1.2a2 2 0 01-.45 1.95l-.7.7a16.001 16.001 0 006.36 6.36l.7-.7a2 2 0 011.95-.45l1.2.3A2 2 0 0121 16.72V19a2 2 0 01-2 2h-1C9.163 21 3 14.837 3 7V5z" /></svg>
+                              <span>{entry.rider.phone}</span>
+                            </a>
+                            <a href={`mailto:${entry.rider.email}`} className="flex items-center gap-1 hover:text-blue-900 transition-colors">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h16v16H4V4zm0 0l8 8 8-8" /></svg>
+                              <span>{entry.rider.email}</span>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-blue-50 rounded-lg p-4 mb-4 border border-blue-100 text-blue-700">
+                        Rider not yet assigned.
+                      </div>
                     )}
                     <div className="border-t pt-4 mt-4">
                   <h4 className="font-medium text-gray-900 mb-3">Items Ordered:</h4>
@@ -297,14 +340,17 @@ const OrdersPage = () => {
                   <div className="flex items-center space-x-2">
                     {getStatusIcon(order.status)}
                     <span className="text-sm text-gray-600">
-                      {order.status === 'delivered' ? 'Order delivered successfully' :
-                       order.status === 'cancelled' ? 'Order was cancelled' :
-                           order.status === 'created' ? 'Order placed and awaiting confirmation' :
-                           order.status === 'paid' ? 'Payment received, order in progress' :
-                       'Order is being processed'}
+                      {order.status === 'DELIVERED' ? 'Order delivered successfully' :
+                       order.status === 'CANCELLED' ? 'Order was cancelled' :
+                       order.status === 'REJECTED' ? 'Order was rejected by the restaurant' :
+                       order.status === 'CREATED' ? 'Order placed and awaiting confirmation' :
+                       order.status === 'PREPARING' ? 'Order is being prepared' :
+                       order.status === 'READY_FOR_PICKUP' ? 'Order is ready for pickup' :
+                       order.status === 'ON_THE_WAY' ? 'Order is on the way' :
+                       'Order status: ' + (order.status || 'Unknown')}
                     </span>
                   </div>
-                  {order.status === 'delivered' && (
+                  {order.status === 'DELIVERED' && (
                     <button className="text-orange-600 hover:text-orange-500 text-sm font-medium">
                       Reorder
                     </button>

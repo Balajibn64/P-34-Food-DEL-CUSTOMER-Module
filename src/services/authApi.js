@@ -16,6 +16,9 @@ export const register = async (role, data) => {
 
 // Google login (frontend-only, as before)
 export const loginWithGoogle = async (googleToken) => {
-  localStorage.setItem('token', googleToken);
-  return { token: googleToken };
+  // Send the Google token to your backend for verification and session creation
+  const response = await axiosInstance.post('/auth/google', { token: googleToken });
+  // Store the backend-issued token
+  localStorage.setItem('token', response.data.token);
+  return response.data;
 }; 
